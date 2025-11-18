@@ -7,12 +7,12 @@ joint_trajectory_executor:
       - joint4
       - joint5
 
-    step_names: [step1, step2]  # Names of the steps
+    step_names: [step1, step2]  # step1 -> step2 로 움직임
 
-    step1: [0.0, 0.0, 0.0, 0.0, 0.0]
-    step2: [0.0, -1.57, 1.57, 1.57, 0.0]
+    step1: [0.0, 0.0, 0.0, 0.0, 0.0] # 각 관절의 값
+    step2: [0.0, -1.57, 1.57, 1.57, 0.0] # 각 관절의 값
 
-    duration: 5.0
-    epsilon: 0.15
-    action_topic: '/arm_controller/follow_joint_trajectory'
+    duration: 5.0 # 전체 움직임이 몇초 걸리는지
+    epsilon: 0.15 # 목표 위치와 실제위치의 오차 허용 범위
+    action_topic: '/arm_controller/follow_joint_trajectory' # ROS2에서 어떤 액션 토픽으로 명령을 보낼지
     joint_states_topic: '/joint_states'

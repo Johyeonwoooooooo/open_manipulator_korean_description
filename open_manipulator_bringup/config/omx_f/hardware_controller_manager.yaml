@@ -1,7 +1,12 @@
 /**:
   controller_manager:
     ros__parameters:
-      update_rate: 100  # Hz
+      update_rate: 100  # Hz 컨트롤러가 1초에 100번 상태 갱신
+
+      # joint_state_broadcaster/JointStateBroadcaster
+      # joint_trajectory_controller/JointTrajectoryController
+      # position_controllers/GripperActionController
+      # 모두 ros2에서 제공하는 패키지
 
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
@@ -15,23 +20,23 @@
 /**:
   arm_controller:
     ros__parameters:
-      joints:
+      joints: # 제어할 관절의 이름 지정
         - joint1
         - joint2
         - joint3
         - joint4
         - joint5
 
-      interface_name: position
+      interface_name: position # 제어방식 (position 위치 제어)
 
-      command_interfaces:
+      command_interfaces: # 컨트롤러가 명령할수 있는 정보
         - position
 
-      state_interfaces:
+      state_interfaces: # 컨트롤러가 관찰할 수 있는 정보
         - position
         - velocity
 
-      allow_partial_joints_goal: true
+      allow_partial_joints_goal: true # 관절 부분만 사용 가능
 
 /**:
   gripper_controller:

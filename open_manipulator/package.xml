@@ -6,11 +6,16 @@
   <description>
     OpenMANIPULATOR meta ROS 2 package.
   </description>
+    <!-- 패키지 유지보수자 및 라이센스 정보 -->
   <maintainer email="pyo@robotis.com">Pyo</maintainer>
   <license>Apache 2.0</license>
+
+    <!-- 패키지 관련 문서나 레포지토리 URL -->
   <url type="website">http://wiki.ros.org/open_manipulator</url>
   <url type="repository">https://github.com/ROBOTIS-GIT/open_manipulator</url>
   <url type="bugtracker">https://github.com/ROBOTIS-GIT/open_manipulator/issues</url>
+
+    <!-- 패키지 작성자 목록 -->
   <author email="thlim@robotis.com">Darby Lim</author>
   <author email="hjkim@robotis.com">Hye-Jong KIM</author>
   <author email="jhshim@robotis.com">Ryan Shim</author>
@@ -19,7 +24,11 @@
   <author email="wsh@robotis.com">Sungho Woo</author>
   <author email="ywh@robotis.com">Wonho Yun</author>
   <author email="wwj@robotis.com">Woojin Wie</author>
+
+    <!-- 이 패키지는 ament_cmake 빌드 시스템으로 빌드됨 -->
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+    <!-- 실행 시 필요한 패키지 의존성(exec_depend) -->
   <exec_depend>open_manipulator_bringup</exec_depend>
   <exec_depend>open_manipulator_collision</exec_depend>
   <exec_depend>open_manipulator_description</exec_depend>
@@ -30,6 +39,8 @@
   <exec_depend>om_gravity_compensation_controller</exec_depend>
   <exec_depend>om_joint_trajectory_command_broadcaster</exec_depend>
   <exec_depend>om_spring_actuator_controller</exec_depend>
+
+  <!-- export: 어떤 빌드 타입을 사용해 다른 패키지에 알려줄지 -->
   <export>
     <build_type>ament_cmake</build_type>
   </export>

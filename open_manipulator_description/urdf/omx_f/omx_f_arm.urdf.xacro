@@ -1,18 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-   <xacro:macro name="omx_f" params="prefix">
-   <xacro:property name="meshes_file_direction" value="package://open_manipulator_description/meshes/omx_f/" />
-      <link name="${prefix}link0" >
+   <xacro:macro name="omx_f" params="prefix"> <!-- omx_f 라는 매크로를 선언-->
+   <xacro:property name="meshes_file_direction" value="package://open_manipulator_description/meshes/omx_f/" /> <!-- 변수 선언 -->
+      <!-- 
+      link0 ~ link5: 로봇 팔 본체
+      joint1 ~ joint5: 팔 구간 회전 관절
+      link6, link7 + gripper_joint_1,2
+      -->
+      <link name="${prefix}link0" > <!-- 첫번째 link0 - 베이스-->
          <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
+               <!-- <geometry>: 형태 정의, 여기서는 메시 파일(STL) -->
                <mesh filename="${meshes_file_direction}/follower_01_base.stl" scale="0.001 0.001 0.001" />
             </geometry>
-            <material name="grey">
+            <material name="grey"> <!-- 색상 지정 -->
                <color rgba="0.2 0.2 0.2 1" />
             </material>
          </visual>
-         <collision>
+         <collision> <!-- 충돌 계산용 모델 , 시뮬레이션 충돌 판정에 사용-->
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
                <mesh filename="${meshes_file_direction}/follower_01_base.stl" scale="0.001 0.001 0.001" />
@@ -21,22 +27,29 @@
                <color rgba="0.2 0.2 0.2 1" />
             </material>
          </collision>
-         <inertial>
-            <origin xyz="-1.441250800e-02 -3.149887900e-03 1.927659900e-02" />
-            <mass value="2.238905100e-01" />
-            <inertia ixx="3.568046100e-04" ixy="-3.297178900e-06" ixz="1.907676700e-05"
+         <inertial> <!-- <inertial>: 물리적 계산용, 질량과 관성 설정 -->
+            <origin xyz="-1.441250800e-02 -3.149887900e-03 1.927659900e-02" /> <!-- 질량 중심 위치 -->
+            <mass value="2.238905100e-01" /> <!-- 무게 -->
+            <!-- inertia: 3x3 관성 텐서, 회전 관성 계산용 -->
+            <inertia ixx="3.568046100e-04" ixy="-3.297178900e-06" ixz="1.907676700e-05" 
             iyy="2.194193200e-04" iyz="1.407164200e-06"
             izz="4.557589900e-04" />
          </inertial>
-      </link>
-      <joint name="${prefix}joint1" type="revolute">
-         <parent link="${prefix}link0" />
+      </link> <!-- link0 베이스 끝 -->
+      <joint name="${prefix}joint1" type="revolute"> <!-- link0와 link1 사이에서 움직일 joint -->
+         <parent link="${prefix}link0" /> <!-- 부모, 자식 설정-->
          <child link="${prefix}link1" />
-         <origin xyz="-0.01125 0 0.034" rpy="0 0 0" />
-         <axis xyz="0 0 1" />
-         <limit velocity="4.8" effort="1000" lower="${-pi*2.0}" upper="${pi*2.0}" />
-         <dynamics damping="0.05" />
+         <origin xyz="-0.01125 0 0.034" rpy="0 0 0" /> <!-- xyz → 부모 링크 기준으로 관절 위치, rpy → joint의 회전 기준 방향 -->
+         <axis xyz="0 0 1" /> <!-- <axis>: 회전축 (z축 방향) : 100 x축, 010 y축 단일 방향-->
+         <limit velocity="4.8" effort="1000" lower="${-pi*2.0}" upper="${pi*2.0}" /> <!-- <limit>: 속도(velocity), 힘(effort), 최소/최대 회전 각도 -->
+         <dynamics damping="0.05" /> <!-- <dynamics damping>: 관절 저항, 너무 빨리 움직이지 않도록 -->
       </joint>
+      <!-- 
+      link1: 첫 번째 팔 구간
+      구조, 색상, STL, 질량, 관성 모두 link0와 동일한 방식
+      STL: follower_02_base_tilt_Revised.stl
+      질량: 0.065 kg
+      -->
       <link name="${prefix}link1" >
          <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
@@ -64,6 +77,7 @@
             izz="1.165795500e-05" />
          </inertial>
       </link>
+      <!-- link1, link2 움직일 joint -->
       <joint name="${prefix}joint2" type="revolute">
          <parent link="${prefix}link1" />
          <child link="${prefix}link2" />
@@ -246,7 +260,7 @@
          <axis xyz="0 0 1" />
          <limit velocity="4.8" effort="1000" lower="${-pi*2.0}" upper="${pi*2.0}" />
          <dynamics damping="0.1" />
-         <mimic joint="${prefix}gripper_joint_1" multiplier="-1"/>
+         <mimic joint="${prefix}gripper_joint_1" multiplier="-1"/> <!-- 반대편 그리퍼랑 똑같이 작동하게-->
       </joint>
       <link name="${prefix}link7" >
          <visual>

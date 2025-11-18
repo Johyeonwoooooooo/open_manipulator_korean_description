@@ -14,22 +14,23 @@
 
 # DESCRIPTION #
 # ----------- #
-# Use this launch file to launch 2 devices.
+# Use this launch file to launch 2 devices. -> 2개 이상의 카메라를 작동하기 위해 사용하는 코드
 # The Parameters available for definition in the command line for each camera are described in
 # rs_launch.configurable_parameters
 # For each device, the parameter name was changed to include an index.
-# For example: to set camera_name for device1 set parameter camera_name1.
+# For example: to set camera_name for device1 set parameter camera_name1. -> 여러대 카메라니까 파라미터 이름에 숫자 붙히기
 # command line example:
 # ros2 launch realsense2_camera rs_multi_camera_launch.py \
-#     camera_name1:=D400 \
-#     device_type1:=d4 \
-#     device_type2:=l5
+#     camera_name1:=D400 \ -> 카메라 이름을 D400 으로 사용할 수 있음
+#     device_type1:=d4 \ -> 카메라 별 시리즈 기입 ex) D400 카메라 -> d4
+#     device_type2:=l5 -> lidar 기반 L500시리즈 -> l5
 
 """Launch realsense2_camera node."""
 import copy
 import os
 import sys
 
+# ROS Launch 파일 만들기 위한 라이브러리
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import OpaqueFunction
@@ -37,9 +38,9 @@ from launch.substitutions import LaunchConfiguration
 
 # Add realsense2_camera/launch to sys.path using ROS package discovery
 realsense2_camera_launch_dir = os.path.join(get_package_share_directory('realsense2_camera'),
-                                            'launch')
+                                            'launch') # realsense2_camera 패키지의 launch 폴더 찾아서
 sys.path.append(realsense2_camera_launch_dir)
-import rs_launch  # noqa: E402, I100
+import rs_launch  # noqa: E402, I100 ### -> rs_launch파일 불러오겠다.
 
 
 local_parameters = [{'name': 'camera_name1', 'default': 'camera',

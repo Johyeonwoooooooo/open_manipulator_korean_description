@@ -1,59 +1,82 @@
 <?xml version="1.0"?>
+<!-- 메인 로봇의 정의를 시작 - 이름은 omx_f -->
 <robot name="omx_f" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:arg name="prefix" default="" />
-  <xacro:arg name="use_sim" default="false" />
-  <xacro:arg name="use_fake_hardware" default="false" />
-  <xacro:arg name="fake_sensor_commands" default="false" />
-  <xacro:arg name="config_type" default="omx_f" />
-  <xacro:arg name="ros2_control_type" default="omx_f" />
-  <xacro:arg name="port_name" default="/dev/ttyACM1" />
 
+  <!--
+    xacro 인자(Argument) 정의들.
+    런치파일이나 xacro 호출 시 이 값을 덮어쓸 수 있음.
+    예: ros2 param o r xacro -arg prefix:=my_
+  -->
+  <xacro:arg name="prefix" default="" /> <!-- 링크/조인트/노드 앞에 붙히는 문자열 여러 로봇을 띄울때 이름 충돌 방지용-->
+  <xacro:arg name="use_sim" default="false" /> <!-- 시뮬레이션 모드 - 내부 매크로에서 시뮬/실험할때 사용-->
+  <xacro:arg name="use_fake_hardware" default="false" /> <!-- 실제 하드웨어 대신 페이크 하드웨어(드라이버 에뮬레이션)를 쓸지 -->
+  <xacro:arg name="fake_sensor_commands" default="false" /> <!-- 센서 입력도 페이크로 처리할지 -->
+  <xacro:arg name="config_type" default="omx_f" /> <!-- bringup에서 사용할 설정 폴더 이름을 지정 (yaml 경로 조합에 사용). -->
+  <xacro:arg name="ros2_control_type" default="omx_f" /> <!-- 어느 ros2_control xacro를 포함할지 결정(하드웨어 인터페이스 관련) -->
+  <xacro:arg name="port_name" default="/dev/ttyACM1" /> <!-- 실제 포트 경로 -->
+
+  <!-- gazebo 시뮬레이션 관련 파일들을 불러옴-->
   <xacro:include filename="$(find open_manipulator_description)/gazebo/omx_f.gazebo.xacro" />
-
+  <!-- 팔의 링크, 조인트 정의가 들어있는 서브 xacro파일을 불러옴 -->
   <xacro:include filename="$(find open_manipulator_description)/urdf/omx_f/omx_f_arm.urdf.xacro" />
-
+  <!-- ros2_control(하드웨어 인터페이스, 컨트롤러 스폰 등) 관련 매크로 파일 불러오기  -->
   <xacro:include filename="$(find open_manipulator_description)/ros2_control/$(arg ros2_control_type).ros2_control.xacro" />
 
+  <!-- 로봇이 기준으로 삼을 좌표계를 world라고 정의하고 이제 정의할 것을 알림-->
+  <!-- 링크는 로봇을 정의할때 필요한 구성요소 (몸체) 라고 할 수 있음 -->
+  <!-- ex) 로봇팔 구현하기 위해 필요한 link = 물리세계 <- 팔뚝 <- 손목 <- 손가락 -->
+  <!-- 이렇게 모든 물리세계, 손목, 손가락 ... 다 link이고 link는 트리처럼 연관을 맺을 수 있음-->
   <link name="world"/>
 
+  <!-- joint는 link에서 정의된 몸체를 움직이는 역할 함-->
+  <!-- 일반적으로 link -> joint -> link -> joint -> link 이런식으로 번갈아가면서 구성됨 -->
+  <!-- parent, child로 link간의 연결구조를 연결 -->
   <joint name="$(arg prefix)world_fixed" type="fixed">
     <parent link="world"/>
     <child link="$(arg prefix)link0"/>
     <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
   </joint>
 
+  <!-- link0~5 는 위에서 불러온 omx_f_arm.urdf.xacro여기에 정의됨 -->
   <joint name="$(arg prefix)end_effector_joint" type="fixed">
     <parent link="$(arg prefix)link5"/>
     <child link="$(arg prefix)end_effector_link"/>
-    <origin xyz="0.09193 -0.0016 0" rpy="0 0 0"/>
+    <origin xyz="0.09193 -0.0016 0" rpy="0 0 0"/> <!-- link5(gripper) 기준 얼마나 떨어져 있음을 나타냄 시각화할 때 펴져있게 하려고-->
   </joint>
 
+  <!-- 시각화용 말단 노드 -->
   <link name="$(arg prefix)end_effector_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/> <!-- 시작 좌표와 회전값 -->
       <geometry>
-        <box size="0.01 0.01 0.01" />
+        <box size="0.01 0.01 0.01" /> <!-- 시각적(visual) 요소 정의 — 여기서는 작은 박스(0.01m³)를 씀 -->
       </geometry>
       <material name="red">
-        <color rgba="1.0 0.0 0.0 1"/>
+        <color rgba="1.0 0.0 0.0 1"/> <!-- 색 지정 -->
       </material>
     </visual>
   </link>
 
+  <!-- omx_f라는 매크로(함수)를 호출. 이 매크로는 omx_f_arm.urdf.xacro 등에서 정의 (위에서 코드 불러오고 여기서 실행)-->
   <xacro:omx_f prefix="$(arg prefix)" />
+  <!-- Gazebo 전용 매크로 호출 -->
   <xacro:omx_f_gazebo prefix="$(arg prefix)" />
 
+  <!-- 위에서 지정했던 xacro arg들을 가져와서 지정해줌 -->
+  <!-- 위 코드는 int a = 1; 이 코드는 robot.a = a 이렇게 지정-->
   <xacro:omx_f_system
     name="OMXFSystem" prefix="$(arg prefix)" use_sim="$(arg use_sim)"
     use_fake_hardware="$(arg use_fake_hardware)"
     fake_sensor_commands="$(arg fake_sensor_commands)"
     port_name="$(arg port_name)"/>
 
-  <gazebo>
+  <!-- Gazebo에서 ros2_control을 사용하도록 연결해주는 플러그인 설정(파일 내 hardware_controller_manager.yaml 경로 전달 -->
+  <gazebo> <!-- Gazebo 전용, 시뮬레이터에서 추가 기능/인터페이스 (플러그인)을 불러올 때 사용 -->
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+    <!-- filename → gazebo에 등록된 실제 플러그인 라이브러리 이름, name → 플러그인 내부 클래스 이름
+    <parameters> → 플러그인에 전달할 설정 파일(yaml) -->
       <parameters>$(find open_manipulator_bringup)/config/$(arg config_type)/hardware_controller_manager.yaml</parameters>
     </plugin>
   </gazebo>
-
 
 </robot>
