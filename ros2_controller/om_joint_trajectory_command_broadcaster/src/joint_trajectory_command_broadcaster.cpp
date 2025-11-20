@@ -336,11 +336,13 @@ bool JointTrajectoryCommandBroadcaster::init_joint_data()
   return true;
 }
 
+// param이나 interface가 안정해져있으면 모든 인터페이스 사용가능하게
 bool JointTrajectoryCommandBroadcaster::use_all_available_interfaces() const
 {
   return params_.joints.empty() || params_.interfaces.empty();
 }
 
+// joint와 인터페이스의 이름으로 맵안의 value값을 꺼내오는 함수
 double get_value(
   const std::unordered_map<std::string, std::unordered_map<std::string, double>> & map,
   const std::string & name, const std::string & interface_name)
@@ -354,21 +356,26 @@ double get_value(
   }
 }
 
+ // 컨트롤러가 주기적으로 호출되어 로봇 관절 상태를 읽고, 이를 JointTrajectory 메시지로 퍼블리시(publish)하는 역할
 controller_interface::return_type JointTrajectoryCommandBroadcaster::update(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
+  // 충돌이 감지되면 경고 메시지를 출력하고, JointTrajectory 퍼블리시를 건너뜀
   if (collision_detected_.load()) {
     RCLCPP_WARN_THROTTLE(
       get_node()->get_logger(), *get_node()->get_clock(), 2000,
       "Collision detected. Skipping joint_trajectory publish.");
     return controller_interface::return_type::OK;
   }
-  // Update stored values
+
+  // state interface에서 현재 값(value)들을 읽어와 맵에 업데이트
   for (const auto & state_interface : state_interfaces_) {
     std::string interface_name = state_interface.get_interface_name();
+    // 만약 interface 이름을 다른 조인트 상태 이름으로 매핑해야 하면 적용
     if (map_interface_to_joint_state_.count(interface_name) > 0) {
       interface_name = map_interface_to_joint_state_[interface_name];
     }
+    // 현재 state interface의 값이 존재하면 map에 저장
     auto value = state_interface.get_optional();
     if (value) {
       name_if_value_mapping_[state_interface.get_prefix_name()][interface_name] = *value;
@@ -376,21 +383,25 @@ controller_interface::return_type JointTrajectoryCommandBroadcaster::update(
   }
 
   // Publish JointTrajectory message with current positions
+   // JointTrajectory 메시지를 퍼블리시
   if (realtime_joint_trajectory_publisher_ && realtime_joint_trajectory_publisher_->trylock()) {
     auto & traj_msg = realtime_joint_trajectory_publisher_->msg_;
-    traj_msg.header.stamp = rclcpp::Time(0, 0);
+
+    // 메시지 헤더와 joint 이름 초기화
+    traj_msg.header.stamp = rclcpp::Time(0, 0); // 현재 시간 대신 0으로 초기화
     traj_msg.joint_names = joint_names_;
 
     const size_t num_joints = joint_names_.size();
     traj_msg.points.clear();
-    traj_msg.points.resize(1);
-    traj_msg.points[0].positions.resize(num_joints, kUninitializedValue);
+    traj_msg.points.resize(1); // 메시지에 포인트 1개만 사용
+    traj_msg.points[0].positions.resize(num_joints, kUninitializedValue); // 초기값 설정
 
+    // 각 조인트의 위치 값을 메시지에 넣음
     for (size_t i = 0; i < num_joints; ++i) {
       double pos_value =
-        get_value(name_if_value_mapping_, joint_names_[i], HW_IF_POSITION);
+        get_value(name_if_value_mapping_, joint_names_[i], HW_IF_POSITION); // 맵에서 해당 조인트와 position interface 값 가져오기
 
-      // Check if the current joint is in the reverse_joints parameter
+      // 만약 해당 조인트가 reverse_joints 목록에 있으면 값 부호 반전
       if (
         std::find(
           params_.reverse_joints.begin(),
@@ -400,23 +411,28 @@ controller_interface::return_type JointTrajectoryCommandBroadcaster::update(
         pos_value = -pos_value;
       }
 
-      // Apply offset
+      // 조인트 오프셋 적용
       pos_value += joint_offsets_[i];
-
+      
+      // 메시지에 최종 위치 값 저장
       traj_msg.points[0].positions[i] = pos_value;
     }
 
-    // Optionally set velocities/accelerations/time_from_start if needed
+    // time_from_start 설정 (여기서는 즉시 적용)
     traj_msg.points[0].time_from_start = rclcpp::Duration(0, 0);  // immediate
 
+    // 퍼블리시 잠금 해제 후 메시지 전송
     realtime_joint_trajectory_publisher_->unlockAndPublish();
   }
 
   return controller_interface::return_type::OK;
 }
 
+// 콜백 함수: 충돌 감지 메시지를 받으면 실행됨
 void JointTrajectoryCommandBroadcaster::collision_callback(const std_msgs::msg::Bool::SharedPtr msg)
 {
+  // 전달받은 메시지(msg)의 data(true/false)를 atomic 변수 collision_detected_에 저장
+  // 나중에 update()에서 이 값을 보고 충돌 시 joint_trajectory 퍼블리시를 건너뜀
   collision_detected_.store(msg->data);
 }
 
@@ -424,6 +440,7 @@ void JointTrajectoryCommandBroadcaster::collision_callback(const std_msgs::msg::
 
 #include "pluginlib/class_list_macros.hpp"
 
+// 플러그인으로 컨트롤러 등록
 PLUGINLIB_EXPORT_CLASS(
   joint_trajectory_command_broadcaster::JointTrajectoryCommandBroadcaster,
   controller_interface::ControllerInterface)
