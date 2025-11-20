@@ -16,6 +16,7 @@
 #
 # Author: Woojin Wie
 
+## 이 코드는 rivz2를 실행하고 로봇팔을 로드하며 경로계획등을 할 수 있게 함
 import os
 from pathlib import Path
 
@@ -31,22 +32,27 @@ from launch_ros.substitutions import FindPackageShare
 from moveit_configs_utils import MoveItConfigsBuilder
 
 
+# launch argements 선언
 def generate_launch_description():
     # Declare launch arguments
-    declared_arguments = [
+    declared_arguments = [ 
+        # launch파일 실행할때 Rviz 실행 여부 -> 디폴트 true
         DeclareLaunchArgument(
             'start_rviz', default_value='true', description='Whether to execute rviz2'
         ),
+        # simulation 시간 사용할지
         DeclareLaunchArgument(
             'use_sim',
             default_value='false',
             description='Whether to use simulation time',
         ),
+        # moveit 저장 db 경로
         DeclareLaunchArgument(
             'warehouse_sqlite_path',
             default_value=os.path.expanduser('~/.ros/warehouse_ros.sqlite'),
             description='Path where the warehouse database should be stored',
         ),
+        # SRDF 정보 퍼블리시 여부
         DeclareLaunchArgument(
             'publish_robot_description_semantic',
             default_value='true',
@@ -54,11 +60,20 @@ def generate_launch_description():
         ),
     ]
 
+    # 위 설정 적용
     start_rviz = LaunchConfiguration('start_rviz')
     use_sim = LaunchConfiguration('use_sim')
     warehouse_sqlite_path = LaunchConfiguration('warehouse_sqlite_path')
     publish_robot_description_semantic = LaunchConfiguration('publish_robot_description_semantic')
 
+    '''
+    | 파일                        | 의미                                                 |
+    | --------------------------- | ---------------------------------------             |
+    | **.srdf**                   | 로봇의 그룹/EEF/충돌 제외 설정 등 추가설정             |
+    | **joint_limits.yaml**       | 각 joint의 최대 속도/가속도 제한                      |
+    | **moveit_controllers.yaml** | MoveIt이 사용할 controller 설정 (팔 움직임 명령 전달)  |
+    | **kinematics.yaml**         | IK solver(KDL 등) 설정                               |
+    '''
     moveit_config = (
         MoveItConfigsBuilder(
             robot_name='omx_f', package_name='open_manipulator_moveit_config')
@@ -72,11 +87,13 @@ def generate_launch_description():
         .to_moveit_configs()
     )
 
+    # MoveIt에서 사용하는 DB 설정 -> 경로계획 결과를 저장하는 db : 없어도 될듯?
     warehouse_ros_config = {
         'warehouse_plugin': 'warehouse_ros_sqlite::DatabaseConnection',
         'warehouse_host': warehouse_sqlite_path,
     }
 
+    # moveit의 핵심 movegroup 설정 위에서 설정했던 설정값을 가지고 movegroup을 만듦
     move_group_node = Node(
         package='moveit_ros_move_group',
         executable='move_group',
@@ -91,6 +108,7 @@ def generate_launch_description():
         ],
     )
 
+    # RViz2 실행
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare('open_manipulator_moveit_config'), 'config', 'moveit.rviz']
     )
@@ -114,6 +132,7 @@ def generate_launch_description():
         ],
     )
 
+    # return LaunchDescription(declared_arguments + [move_group_node, rviz_node])
     return LaunchDescription(
         declared_arguments
         + [
