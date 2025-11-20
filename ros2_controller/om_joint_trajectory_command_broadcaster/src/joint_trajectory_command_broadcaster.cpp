@@ -71,7 +71,7 @@ velocity	속도를 읽거나 쓰는 용도 (ex. 모터 10deg/s 회전)
 effort	힘/토크를 읽거나 쓰는 용도 (ex. 모터 토크 2Nm 적용)
 */
 
-// command_interface_configuration(): 컨트롤러가 명령을 보낼 인터페이스 정의
+// command_interface_configuration(): 컨트롤러가 명령을 보낼 인터페이스 정의하는 함수
 controller_interface::InterfaceConfiguration
 JointTrajectoryCommandBroadcaster::command_interface_configuration() const
 // 이 컨트롤러는 직접 하드웨어에 명령을 쓰지 않고,
@@ -175,19 +175,26 @@ controller_interface::CallbackReturn JointTrajectoryCommandBroadcaster::on_confi
   return CallbackReturn::SUCCESS;
 }
 
+// 컨트롤러 활성화
 controller_interface::CallbackReturn JointTrajectoryCommandBroadcaster::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
+  // 로봇 관절과 연결된 장비(인터페이스)가 제대로 존재하는지 확인.
   if (!init_joint_data()) {
     RCLCPP_ERROR(
       get_node()->get_logger(), "None of requested interfaces exist. Controller will not run.");
     return CallbackReturn::ERROR;
   }
+
   // Check offsets and create mapping based on params_.joints order
+  // 조인트 보정값(offset)을 저장할 리스트 초기화
+  //    모든 관절 보정값을 0으로 시작
   joint_offsets_.clear();
   joint_offsets_.resize(params_.joints.size(), 0.0);
 
+  // 만약 설정 파일(params)에 관절 보정값이 제공되었다면 처리
   if (!params_.offsets.empty()) {
+    // 관절 수와 보정값 수가 다르면 잘못된 설정 → 에러
     if (params_.offsets.size() != params_.joints.size()) {
       RCLCPP_ERROR(
         get_node()->get_logger(),
@@ -197,23 +204,26 @@ controller_interface::CallbackReturn JointTrajectoryCommandBroadcaster::on_activ
     }
 
     // Create mapping from joint name to offset based on params_.joints order
+    // (관절 이름 → 보정값) 매핑 테이블 만들기
+    // ex) { "joint1": 0.1, "joint2": -0.05 }
     std::unordered_map<std::string, double> joint_offset_map;
     for (size_t i = 0; i < params_.joints.size(); ++i) {
       joint_offset_map[params_.joints[i]] = params_.offsets[i];
     }
 
-    // Apply offsets to joint_names_ in their actual order
+    // 실제 관절 배열 순서(joint_names_)에 맞추어 보정값 넣기
     for (size_t i = 0; i < joint_names_.size(); ++i) {
-      auto it = joint_offset_map.find(joint_names_[i]);
+      auto it = joint_offset_map.find(joint_names_[i]); // 이름이 같은 관절 찾기
       if (it != joint_offset_map.end()) {
-        joint_offsets_[i] = it->second;
+        joint_offsets_[i] = it->second; // 보정값 적용
       }
       // If joint not found in params_.joints, offset remains 0.0
     }
   }
   // No need to init JointState or DynamicJointState messages, only JointTrajectory
   // will be published. We'll construct it on-the-fly in update()
-
+  
+   // 요청된 관절 인터페이스 수와 실제 존재하는 인터페이스 수가 다를 경우 경고 출력
   if (
     !use_all_available_interfaces() &&
     state_interfaces_.size() != (params_.joints.size() * params_.interfaces.size()))
@@ -224,10 +234,11 @@ controller_interface::CallbackReturn JointTrajectoryCommandBroadcaster::on_activ
       "Check ControllerManager output for more detailed information.");
   }
 
+  //모든 준비가 잘 끝남 → 컨트롤러 활성화 성공
   return CallbackReturn::SUCCESS;
 }
 
-
+// 컨트롤러 비활성화
 controller_interface::CallbackReturn JointTrajectoryCommandBroadcaster::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
@@ -237,6 +248,17 @@ controller_interface::CallbackReturn JointTrajectoryCommandBroadcaster::on_deact
   return CallbackReturn::SUCCESS;
 }
 
+/* 맵 안에 특정 키가 있는지 검사하는 도구
+{
+  "position": 값,
+  "velocity": 값,
+  "effort": 값
+}
+이런 맵이 있을 떄 ["position"] 가 있는지 확인하고 싶을때 사용
+
+로봇 joint의 상태(interface) 중에서
+position 정보가 있는 joint만 골라내기 위해 쓰임.
+*/ 
 template<typename T>
 bool has_any_key(
   const std::unordered_map<std::string, T> & map, const std::vector<std::string> & keys)
@@ -250,14 +272,28 @@ bool has_any_key(
   return false;
 }
 
+// 이 컨트롤러가 사용할 joint 목록을 결정하는 함수
 bool JointTrajectoryCommandBroadcaster::init_joint_data()
 {
+  // 그 전 명령어에 있던 정보들 초기화
   joint_names_.clear();
   if (state_interfaces_.empty()) {
     return false;
   }
 
   // Initialize mapping
+  /*
+  { joint="joint1", interface="position", value=1.57 },
+  { joint="joint1", interface="velocity", value=0.2 },
+  { joint="joint2", interface="position", value=-0.3 },
+  { joint="joint2", interface="velocity", value=0.0 },
+  -> 이런값들을 아래처럼 변환
+  name_if_value_mapping_ = {
+  "joint1": { "position": 값, "velocity": 값 },
+  "joint2": { "position": 값, "velocity": 값 },
+  "joint3": { "velocity": 값 }
+  }
+  */
   for (auto si = state_interfaces_.crbegin(); si != state_interfaces_.crend(); si++) {
     if (name_if_value_mapping_.count(si->get_prefix_name()) == 0) {
       name_if_value_mapping_[si->get_prefix_name()] = {};
@@ -270,6 +306,7 @@ bool JointTrajectoryCommandBroadcaster::init_joint_data()
   }
 
   // Filter out joints without position interface (since we want positions)
+  // position 인터페이스가 있는 joint만 골라내기
   for (const auto & name_ifv : name_if_value_mapping_) {
     const auto & interfaces_and_values = name_ifv.second;
     if (has_any_key(interfaces_and_values, {HW_IF_POSITION})) {
@@ -283,6 +320,7 @@ bool JointTrajectoryCommandBroadcaster::init_joint_data()
   }
 
   // Add extra joints if needed
+  // extra_joints 파라미터가 있으면 추가
   rclcpp::Parameter extra_joints;
   if (get_node()->get_parameter("extra_joints", extra_joints)) {
     const std::vector<std::string> & extra_joints_names = extra_joints.as_string_array();
